@@ -10,10 +10,12 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');  // ✅ Replace
 const extractTextOcr = require('./OcrTextExtra');
 const processWithGemini = require('./Gemini.js');  // ✅ Renamed from Groq.js
 const upload = require('./uploads/multer.js');
-const uploadRouter = require('./Routes/UploadRouter');
+// In index.js
+const uploadRouter = require('./Routes/UploadRouter.js');  // Add .js
+
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // ---------------- MIDDLEWARE (CORRECT ORDER) ----------------
 app.use(cors());
