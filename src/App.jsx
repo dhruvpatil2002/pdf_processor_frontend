@@ -27,7 +27,7 @@ export default function App() {
       const formData = new FormData();
       formData.append('pdf', file);
 
-      const response = await axios.post('/api/pdf', formData);
+      const response = await axios.post('/api/process-pdf', formData);
 
       setAccounts(response.data.accounts || []);
     } catch (err) {
