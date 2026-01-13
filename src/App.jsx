@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
 import axios from 'axios';
-
+import upload from '../api/upload.js';
 export default function App() {
   const [file, setFile] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -27,7 +27,10 @@ export default function App() {
       const formData = new FormData();
       formData.append('pdf', file);
 
-      const response = await axios.post('/api/process-pdf', formData);
+      
+const response = await axios.post('https://your-backend.vercel.app/api/upload', data)
+
+
 
       setAccounts(response.data.accounts || []);
     } catch (err) {
