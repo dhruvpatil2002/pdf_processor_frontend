@@ -32,7 +32,7 @@ export default function App() {
       // ✅ FIXED: Correct endpoints for both backends
       const url = process.env.NODE_ENV === 'production' 
         ? '/api/upload'  // Vercel
-        : '/api/process-pdf';  // Express
+        : 'https://backend-seven-virid-49.vercel.app/api/upload';  // Express
 
       const response = await axios.post(url, formData);
 
