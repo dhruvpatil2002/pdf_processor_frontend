@@ -7,13 +7,13 @@ export default function App() {
   const [file, setFile] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [pdfUrl, setPdfUrl] = useState(""); // ✅ NEW: Store PDF URL
+  const [error, setError] = useState(""); // ✅ Always string
+  const [pdfUrl, setPdfUrl] = useState("");
 
   const handleUpload = (e) => {
     setFile(e.target.files?.[0] || null);
     setError("");
-    setPdfUrl(""); // Reset PDF URL
+    setPdfUrl("");
   };
 
   const processFile = async () => {
@@ -29,22 +29,26 @@ export default function App() {
       const formData = new FormData();
       formData.append("pdf", file);
 
-      // ✅ FIXED: Correct endpoints for both backends
-      const url = process.env.NODE_ENV === 'production' 
-        ? '/api/upload'  // Vercel
-        : 'https://backend-seven-virid-49.vercel.app/api/upload';  // Express
-
-      const response = await axios.post(url, formData);
+      // ✅ FIXED: Always relative path for Vercel
+      const response = await axios.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000, // 30s timeout
+      });
 
       setAccounts(response.data.accounts || []);
-      
-      // ✅ NEW: Store PDF URL for viewing
       if (response.data.pdfUrl) {
         setPdfUrl(response.data.pdfUrl);
       }
       
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to process PDF");
+      // ✅ FIXED: Safe error handling - prevents React error #31
+      const errorMessage = err.response?.data?.error || 
+                          err.message || 
+                          "Failed to process PDF. Please try again.";
+      setError(errorMessage);
+      console.error('Upload error:', err.response || err);
     } finally {
       setLoading(false);
     }
@@ -67,7 +71,7 @@ export default function App() {
           <div style={{ width: "35%", background: "#fff", padding: 24, borderRadius: 8 }}>
             <h3>Upload Bank Statement</h3>
             
-            {/* ✅ NEW: PDF Preview Section */}
+            {/* PDF Preview */}
             {pdfUrl && (
               <div style={{ marginBottom: 16 }}>
                 <h4>📄 Original PDF:</h4>
@@ -116,7 +120,7 @@ export default function App() {
                 Choose File
               </label>
               <div style={{ marginTop: 10, fontSize: 13, color: "#777" }}>
-                Only PDF files are supported
+                Only PDF files are supported (max 10MB)
               </div>
             </div>
 
@@ -130,11 +134,26 @@ export default function App() {
                   fontSize: 14,
                 }}
               >
-                <strong>Selected:</strong> {file.name} ({(file.size/1024/1024).toFixed(1)} MB)
+                <strong>Selected:</strong> {file.name} 
+                <span style={{ float: 'right', color: '#666' }}>
+                  {(file.size/1024/1024).toFixed(1)} MB
+                </span>
               </div>
             )}
 
-            {error && <div style={{ marginTop: 12, color: "red", fontSize: 14 }}>{error}</div>}
+            {error && (
+              <div style={{ 
+                marginTop: 12, 
+                padding: 12,
+                background: "#fee",
+                color: "#dc2626", 
+                fontSize: 14,
+                borderRadius: 6,
+                border: "1px solid #fecaca"
+              }}>
+                {error}
+              </div>
+            )}
 
             <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
               <button
@@ -142,7 +161,7 @@ export default function App() {
                 disabled={loading || !file}
                 style={{
                   padding: "10px 18px",
-                  background: "#2563eb",
+                  background: loading || !file ? "#9ca3af" : "#2563eb",
                   color: "#ffffff",
                   border: "none",
                   borderRadius: 6,
@@ -171,8 +190,20 @@ export default function App() {
           {/* Right Panel - Results */}
           <div style={{ width: "65%" }}>
             {accounts.length === 0 && !loading && (
-              <div style={{ color: "#666", background: "#fff", padding: 24, borderRadius: 8 }}>
-                Upload a PDF to extract bank accounts and transactions
+              <div style={{ 
+                color: "#666", 
+                background: "#fff", 
+                padding: 24, 
+                borderRadius: 8,
+                minHeight: "400px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <div>
+                  <div style={{ fontSize: 48, color: "#d1d5db", marginBottom: 16 }}>📊</div>
+                  Upload a PDF to extract bank accounts and transactions
+                </div>
               </div>
             )}
 
@@ -187,41 +218,79 @@ export default function App() {
                 {accounts.map((acc, i) => (
                   <TabPanel key={i}>
                     <div style={{ background: "#fff", padding: 20, borderRadius: 8 }}>
-                      <h3>Account Details</h3>
-                      <table style={{ width: "100%", marginBottom: 20 }}>
-                        <tbody>
-                          <tr><td>Account Holder</td><td>{acc.accountHolder}</td></tr>
-                          <tr><td>Account Number</td><td>{acc.accountNumber}</td></tr>
-                          <tr><td>Account Type</td><td>{acc.accountType}</td></tr>
-                          <tr><td>Statement Period</td><td>{acc.startDate} - {acc.endDate}</td></tr>
-                          <tr><td>Opening Balance</td><td>₹{acc.openingBalance}</td></tr>
-                          <tr><td>Closing Balance</td><td>₹{acc.closingBalance}</td></tr>
+                      <h3 style={{ marginBottom: 16, color: "#1f2937" }}>Account Details</h3>
+                      <table style={{ width: "100%", marginBottom: 20, background: "#f9fafb" }}>
+                        <tbody style={{ fontSize: 14 }}>
+                          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "8px 0", fontWeight: 500, width: "40%" }}>Account Holder</td>
+                            <td>{acc.accountHolder}</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "8px 0", fontWeight: 500 }}>Account Number</td>
+                            <td>{acc.accountNumber}</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "8px 0", fontWeight: 500 }}>Account Type</td>
+                            <td>{acc.accountType}</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "8px 0", fontWeight: 500 }}>Statement Period</td>
+                            <td>{acc.startDate} - {acc.endDate}</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "8px 0", fontWeight: 500 }}>Opening Balance</td>
+                            <td style={{ color: "#059669" }}>₹{acc.openingBalance}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: "8px 0", fontWeight: 500 }}>Closing Balance</td>
+                            <td style={{ color: "#059669", fontWeight: 600, fontSize: 16 }}>₹{acc.closingBalance}</td>
+                          </tr>
                         </tbody>
                       </table>
 
-                      <h3>Transactions</h3>
-                      <table width="100%" border="1" cellPadding="8" style={{ borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ background: "#eee" }}>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Debit</th>
-                            <th>Credit</th>
-                            <th>Balance</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {acc.transactions?.map((t, j) => (
-                            <tr key={j}>
-                              <td>{t.date}</td>
-                              <td>{t.description || t.desc}</td>
-                              <td style={{ color: 'red' }}>{t.debit || "-"}</td>
-                              <td style={{ color: 'green' }}>{t.credit || "-"}</td>
-                              <td>{t.balance}</td>
+                      <h3 style={{ marginBottom: 16, color: "#1f2937" }}>Transactions</h3>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                          <thead>
+                            <tr style={{ background: "#f3f4f6" }}>
+                              <th style={{ padding: "12px 8px", textAlign: "left", fontWeight: 600 }}>Date</th>
+                              <th style={{ padding: "12px 8px", textAlign: "left", fontWeight: 600 }}>Description</th>
+                              <th style={{ padding: "12px 8px", textAlign: "right", fontWeight: 600 }}>Debit</th>
+                              <th style={{ padding: "12px 8px", textAlign: "right", fontWeight: 600 }}>Credit</th>
+                              <th style={{ padding: "12px 8px", textAlign: "right", fontWeight: 600 }}>Balance</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {acc.transactions?.map((t, j) => (
+                              <tr key={j} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                <td style={{ padding: "12px 8px" }}>{t.date}</td>
+                                <td style={{ padding: "12px 8px" }}>{t.description}</td>
+                                <td style={{ 
+                                  padding: "12px 8px", 
+                                  textAlign: "right", 
+                                  color: t.debit ? "#dc2626" : "#9ca3af" 
+                                }}>
+                                  {t.debit || "-"}
+                                </td>
+                                <td style={{ 
+                                  padding: "12px 8px", 
+                                  textAlign: "right", 
+                                  color: t.credit ? "#059669" : "#9ca3af" 
+                                }}>
+                                  {t.credit || "-"}
+                                </td>
+                                <td style={{ 
+                                  padding: "12px 8px", 
+                                  textAlign: "right", 
+                                  fontWeight: 500 
+                                }}>
+                                  ₹{t.balance}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </TabPanel>
                 ))}
