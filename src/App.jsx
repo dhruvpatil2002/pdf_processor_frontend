@@ -1,40 +1,50 @@
-import React, { useState } from 'react';
-import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import 'react-tabs/style/react-tabs.css';
-import axios from 'axios';
-import upload from '../api/upload.js';
+import React, { useState } from "react";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import "react-tabs/style/react-tabs.css";
+import axios from "axios";
+
 export default function App() {
   const [file, setFile] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [pdfUrl, setPdfUrl] = useState(""); // ✅ NEW: Store PDF URL
 
   const handleUpload = (e) => {
-    setFile(e.target.files[0]);
-    setError('');
+    setFile(e.target.files?.[0] || null);
+    setError("");
+    setPdfUrl(""); // Reset PDF URL
   };
 
   const processFile = async () => {
     if (!file) {
-      setError('Please select a PDF file');
+      setError("Please select a PDF file");
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       const formData = new FormData();
-      formData.append('pdf', file);
+      formData.append("pdf", file);
 
-      
-const response = await axios.post('https://your-backend.vercel.app/api/upload', data)
+      // ✅ FIXED: Correct endpoints for both backends
+      const url = process.env.NODE_ENV === 'production' 
+        ? '/api/upload'  // Vercel
+        : '/api/process-pdf';  // Express
 
-
+      const response = await axios.post(url, formData);
 
       setAccounts(response.data.accounts || []);
+      
+      // ✅ NEW: Store PDF URL for viewing
+      if (response.data.pdfUrl) {
+        setPdfUrl(response.data.pdfUrl);
+      }
+      
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to process PDF');
+      setError(err.response?.data?.error || "Failed to process PDF");
     } finally {
       setLoading(false);
     }
@@ -43,29 +53,44 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
   const clearAll = () => {
     setFile(null);
     setAccounts([]);
-    setError('');
+    setPdfUrl("");
+    setError("");
   };
 
   return (
-    <div style={{ minHeight: '100vh', padding: 24, background: '#f5f6f8' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ minHeight: "100vh", padding: 24, background: "#f5f6f8" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <h2 style={{ marginBottom: 20 }}>Bank Statement Parser</h2>
 
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          {/* Left: Upload Section */}
-          <div style={{ width: '35%', background: '#fff', padding: 24, borderRadius: 8 }}>
+        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+          {/* Left Panel - Upload */}
+          <div style={{ width: "35%", background: "#fff", padding: 24, borderRadius: 8 }}>
             <h3>Upload Bank Statement</h3>
-            <p style={{ fontSize: 14, color: '#555', marginBottom: 16 }}>
-              Select a PDF file to extract account and transaction data.
-            </p>
+            
+            {/* ✅ NEW: PDF Preview Section */}
+            {pdfUrl && (
+              <div style={{ marginBottom: 16 }}>
+                <h4>📄 Original PDF:</h4>
+                <iframe
+                  src={`${pdfUrl}#view=FitH`}
+                  style={{ 
+                    width: "100%", 
+                    height: 300, 
+                    border: "1px solid #ddd", 
+                    borderRadius: 4 
+                  }}
+                  title="Uploaded PDF"
+                />
+              </div>
+            )}
 
             <div
               style={{
-                border: '2px dashed #ccc',
+                border: "2px dashed #ccc",
                 borderRadius: 8,
                 padding: 24,
-                textAlign: 'center',
-                background: '#fafafa'
+                textAlign: "center",
+                background: "#fafafa",
               }}
             >
               <input
@@ -73,26 +98,24 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
                 type="file"
                 accept=".pdf"
                 onChange={handleUpload}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
-
               <label
                 htmlFor="pdfUpload"
                 style={{
-                  display: 'inline-block',
-                  padding: '10px 18px',
-                  background: '#e5e7eb',
-                  color: '#111827',
+                  display: "inline-block",
+                  padding: "10px 18px",
+                  background: "#e5e7eb",
+                  color: "#111827",
                   borderRadius: 6,
-                  cursor: 'pointer',
+                  cursor: "pointer",
                   fontSize: 14,
-                  fontWeight: 500
+                  fontWeight: 500,
                 }}
               >
                 Choose File
               </label>
-
-              <div style={{ marginTop: 10, fontSize: 13, color: '#777' }}>
+              <div style={{ marginTop: 10, fontSize: 13, color: "#777" }}>
                 Only PDF files are supported
               </div>
             </div>
@@ -102,45 +125,42 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
                 style={{
                   marginTop: 16,
                   padding: 12,
-                  background: '#f0f4ff',
+                  background: "#f0f4ff",
                   borderRadius: 6,
-                  fontSize: 14
+                  fontSize: 14,
                 }}
               >
-                <strong>Selected file:</strong> {file.name}
+                <strong>Selected:</strong> {file.name} ({(file.size/1024/1024).toFixed(1)} MB)
               </div>
             )}
 
-            {error && (
-              <div style={{ marginTop: 12, color: 'red', fontSize: 14 }}>{error}</div>
-            )}
+            {error && <div style={{ marginTop: 12, color: "red", fontSize: 14 }}>{error}</div>}
 
-            <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
+            <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
               <button
                 onClick={processFile}
                 disabled={loading || !file}
                 style={{
-                  padding: '10px 18px',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
+                  padding: "10px 18px",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
                   borderRadius: 6,
-                  cursor: loading || !file ? 'not-allowed' : 'pointer',
-                  opacity: loading || !file ? 0.6 : 1
+                  cursor: loading || !file ? "not-allowed" : "pointer",
+                  opacity: loading || !file ? 0.6 : 1,
                 }}
               >
-                {loading ? 'Processing…' : 'Process PDF'}
+                {loading ? "Processing…" : "Process PDF"}
               </button>
-
               <button
                 onClick={clearAll}
                 disabled={loading}
                 style={{
-                  padding: '10px 18px',
-                  background: '#e5e7eb',
-                  color: '#111827',
-                  border: 'none',
-                  borderRadius: 6
+                  padding: "10px 18px",
+                  background: "#e5e7eb",
+                  color: "#111827",
+                  border: "none",
+                  borderRadius: 6,
                 }}
               >
                 Clear
@@ -148,11 +168,11 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
             </div>
           </div>
 
-          {/* Right: Output Section */}
-          <div style={{ width: '65%' }}>
+          {/* Right Panel - Results */}
+          <div style={{ width: "65%" }}>
             {accounts.length === 0 && !loading && (
-              <div style={{ color: '#666', background: '#fff', padding: 24, borderRadius: 8 }}>
-                No results to display
+              <div style={{ color: "#666", background: "#fff", padding: 24, borderRadius: 8 }}>
+                Upload a PDF to extract bank accounts and transactions
               </div>
             )}
 
@@ -166,10 +186,9 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
 
                 {accounts.map((acc, i) => (
                   <TabPanel key={i}>
-                    <div style={{ background: '#fff', padding: 20, borderRadius: 8 }}>
+                    <div style={{ background: "#fff", padding: 20, borderRadius: 8 }}>
                       <h3>Account Details</h3>
-
-                      <table style={{ width: '100%', marginBottom: 20 }}>
+                      <table style={{ width: "100%", marginBottom: 20 }}>
                         <tbody>
                           <tr><td>Account Holder</td><td>{acc.accountHolder}</td></tr>
                           <tr><td>Account Number</td><td>{acc.accountNumber}</td></tr>
@@ -181,9 +200,9 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
                       </table>
 
                       <h3>Transactions</h3>
-                      <table width="100%" border="1" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
+                      <table width="100%" border="1" cellPadding="8" style={{ borderCollapse: "collapse" }}>
                         <thead>
-                          <tr style={{ background: '#eee' }}>
+                          <tr style={{ background: "#eee" }}>
                             <th>Date</th>
                             <th>Description</th>
                             <th>Debit</th>
@@ -196,8 +215,8 @@ const response = await axios.post('https://your-backend.vercel.app/api/upload', 
                             <tr key={j}>
                               <td>{t.date}</td>
                               <td>{t.description || t.desc}</td>
-                              <td>{t.debit || '-'}</td>
-                              <td>{t.credit || '-'}</td>
+                              <td style={{ color: 'red' }}>{t.debit || "-"}</td>
+                              <td style={{ color: 'green' }}>{t.credit || "-"}</td>
                               <td>{t.balance}</td>
                             </tr>
                           ))}
